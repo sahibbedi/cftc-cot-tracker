@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
 def build_cot_chart():
-    # 1. Fetch CFTC Data (Updated Endpoint)
+    # 1. Fetch CFTC Data 
     url = "https://publicreporting.cftc.gov/resource/gpe5-46if.json"
     params = {
         "$order": "report_date_as_yyyy_mm_dd DESC",
@@ -24,12 +24,13 @@ def build_cot_chart():
     ].copy()
 
     if bitcoin_cot_df.empty:
-        print("No Bitcoin data found with current filters.")
-        return # Exit if no Bitcoin data
+        print("No Bitcoin data found.")
+        return 
 
     # Process Leveraged Funds Net Short
     cot_df = bitcoin_cot_df.copy() 
-    cot_df['Date'] = pd.to_datetime(cot_df['report_date_as_yyyy_mm_dd'])
+    # Ensure CFTC date is explicitly timezone-naive
+    cot_df['Date'] = pd.to_datetime(cot_df['report_date_as_yyyy_mm_dd']).dt.tz_localize(None)
     cot_df['Lev_Short'] = pd.to_numeric(cot_df['lev_money_positions_short'])
     cot_df['Lev_Long'] = pd.to_numeric(cot_df['lev_money_positions_long'])
     cot_df['Net_Short'] = cot_df['Lev_Short'] - cot_df['Lev_Long']
@@ -39,15 +40,19 @@ def build_cot_chart():
     print("Fetching pricing data for basis overlay...")
     start_date = cot_df.index.min().strftime('%Y-%m-%d')
     
-    # Download as a list to ensure consistent column parsing in yfinance
-    price_data = yf.download(["BTC-USD", "BTC=F"], start=start_date, progress=False)['Close']
+    # Download tickers separately to prevent MultiIndex formatting issues
+    spot = yf.Ticker("BTC-USD").history(start=start_date)['Close']
+    fut = yf.Ticker("BTC=F").history(start=start_date)['Close']
     
-    # Calculate basis and name the series so it merges cleanly
-    ann_basis = ((price_data['BTC=F'] / price_data['BTC-USD']) - 1) * (365 / 30) * 100
+    # THE FIX: Strip timezones from Yahoo Finance data so it aligns with CFTC data
+    spot.index = spot.index.tz_localize(None)
+    fut.index = fut.index.tz_localize(None)
+    
+    # Calculate basis
+    ann_basis = ((fut / spot) - 1) * (365 / 30) * 100
     ann_basis.name = 'Ann_Basis_Pct'
 
     # 3. Merge Datasets 
-    # Forward-fill (ffill) and backward-fill (bfill) to fix the missing line caused by weekend/holiday NaN gaps
     merged = cot_df.join(ann_basis, how='left')
     merged['Ann_Basis_Pct'] = merged['Ann_Basis_Pct'].ffill().bfill()
 
@@ -62,10 +67,10 @@ def build_cot_chart():
     ax1.set_ylabel('Leveraged Funds Net Short (Contracts)', color=color1, fontweight='bold', fontsize=11)
     ax1.tick_params(axis='y', labelcolor=color1)
 
-    # Title & Subtitle (Adjusted padding and Y coordinates to prevent overlap)
+    # THE TITLE FIX: Use suptitle for main, set_title for sub, and adjust margins
     latest_date = merged.index.max().strftime('%b %d, %Y')
-    plt.title('BTC CME Basis vs. Leveraged Fund Positioning', fontsize=16, fontweight='bold', pad=25)
-    plt.suptitle(f"The Crowding Premium (CFTC Data as of {latest_date})", fontsize=11, color='gray', y=0.88)
+    fig.suptitle('BTC CME Basis vs. Leveraged Fund Positioning', fontsize=16, fontweight='bold', y=0.98)
+    ax1.set_title(f"The Crowding Premium (CFTC Data as of {latest_date})", fontsize=11, color='gray', pad=15)
 
     # Ann Basis Line Chart
     ax2 = ax1.twinx()
@@ -76,7 +81,7 @@ def build_cot_chart():
 
     # Clean up X-Axis formatting
     ax1.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
-    plt.xticks(rotation=45) # Angle dates slightly so they don't overlap on long timeframes
+    plt.xticks(rotation=45) 
     ax1.grid(True, linestyle='--', alpha=0.4)
 
     # Merge Legends
@@ -84,14 +89,14 @@ def build_cot_chart():
     lines_2, labels_2 = ax2.get_legend_handles_labels()
     ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper left', frameon=True)
 
-    # Tell tight_layout to leave room at the top for the suptitle
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    # Apply layout constraints
+    fig.tight_layout()
+    fig.subplots_adjust(top=0.85) # Explicitly push chart down to give titles space
 
     # Save as static image
     filename = 'cftc_btc_crowding.png'
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     print(f"Successfully generated '{filename}'")
 
-# Execute the function
 if __name__ == "__main__":
     build_cot_chart()
