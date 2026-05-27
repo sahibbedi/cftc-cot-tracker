@@ -7,11 +7,11 @@ import matplotlib.dates as mdates
 def build_cot_chart():
     # 1. Fetch CFTC Data 
     url = "https://publicreporting.cftc.gov/resource/gpe5-46if.json"
-    params = {
+params = {
+        "contract_market_name": "BITCOIN - CHICAGO MERCANTILE EXCHANGE",
         "$order": "report_date_as_yyyy_mm_dd DESC",
         "$limit": 156
     }
-
     print("Fetching CFTC CoT Data...")
     response = requests.get(url, params=params)
     response.raise_for_status()
