@@ -88,7 +88,9 @@ def build_cot_chart():
     fig.tight_layout()
 
     # Renders inline in Colab instead of saving to a file
-    plt.show()
-
+# Save as static image
+    filename = 'cftc_btc_crowding.png'
+    plt.savefig(filename, dpi=300, bbox_inches='tight')
+    print(f"Successfully generated '{filename}'")
 # Execute the function
 build_cot_chart()
