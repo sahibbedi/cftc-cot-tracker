@@ -17,16 +17,6 @@ def build_cot_chart():
     response.raise_for_status()
     cot_df = pd.DataFrame(response.json())
 
-    # Debugging: Print columns and unique market names to identify the correct Bitcoin market name
-    print("COT DataFrame columns:", cot_df.columns)
-    print("COT DataFrame shape:", cot_df.shape)
-    if not cot_df.empty:
-        if 'contract_market_name' in cot_df.columns:
-            print("Unique contract_market_name values (first 10):", cot_df['contract_market_name'].unique()[:10]) # Limiting output
-        if 'commodity_name' in cot_df.columns:
-            print("Unique commodity_name values (first 10):", cot_df['commodity_name'].unique()[:10]) # Limiting output
-    print("COT DataFrame head:\n", cot_df.head())
-
     # Filter for Bitcoin data
     bitcoin_cot_df = cot_df[
         (cot_df['contract_market_name'].str.contains('BITCOIN', case=False, na=False)) |
@@ -37,10 +27,8 @@ def build_cot_chart():
         print("No Bitcoin data found with current filters.")
         return # Exit if no Bitcoin data
 
-    print("Filtered Bitcoin COT DataFrame head:\n", bitcoin_cot_df.head())
-
     # Process Leveraged Funds Net Short
-    cot_df = bitcoin_cot_df.copy() # Use the filtered DataFrame for further processing
+    cot_df = bitcoin_cot_df.copy() 
     cot_df['Date'] = pd.to_datetime(cot_df['report_date_as_yyyy_mm_dd'])
     cot_df['Lev_Short'] = pd.to_numeric(cot_df['lev_money_positions_short'])
     cot_df['Lev_Long'] = pd.to_numeric(cot_df['lev_money_positions_long'])
@@ -50,11 +38,18 @@ def build_cot_chart():
     # 2. Fetch Pricing Data for Basis
     print("Fetching pricing data for basis overlay...")
     start_date = cot_df.index.min().strftime('%Y-%m-%d')
-    price_data = yf.download("BTC-USD BTC=F", start=start_date, progress=False)['Close'].dropna()
-    price_data['Ann_Basis_Pct'] = ((price_data['BTC=F'] / price_data['BTC-USD']) - 1) * (365 / 30) * 100
+    
+    # Download as a list to ensure consistent column parsing in yfinance
+    price_data = yf.download(["BTC-USD", "BTC=F"], start=start_date, progress=False)['Close']
+    
+    # Calculate basis and name the series so it merges cleanly
+    ann_basis = ((price_data['BTC=F'] / price_data['BTC-USD']) - 1) * (365 / 30) * 100
+    ann_basis.name = 'Ann_Basis_Pct'
 
-    # 3. Merge Datasets
-    merged = cot_df.join(price_data['Ann_Basis_Pct'], how='left').ffill()
+    # 3. Merge Datasets 
+    # Forward-fill (ffill) and backward-fill (bfill) to fix the missing line caused by weekend/holiday NaN gaps
+    merged = cot_df.join(ann_basis, how='left')
+    merged['Ann_Basis_Pct'] = merged['Ann_Basis_Pct'].ffill().bfill()
 
     # 4. Generate the Chart
     print("Generating chart...")
@@ -67,9 +62,10 @@ def build_cot_chart():
     ax1.set_ylabel('Leveraged Funds Net Short (Contracts)', color=color1, fontweight='bold', fontsize=11)
     ax1.tick_params(axis='y', labelcolor=color1)
 
+    # Title & Subtitle (Adjusted padding and Y coordinates to prevent overlap)
     latest_date = merged.index.max().strftime('%b %d, %Y')
-    plt.title('BTC CME Basis vs. Leveraged Fund Positioning', fontsize=16, fontweight='bold', pad=20)
-    plt.suptitle(f"The Crowding Premium (CFTC Data as of {latest_date})", fontsize=11, color='gray', y=0.92)
+    plt.title('BTC CME Basis vs. Leveraged Fund Positioning', fontsize=16, fontweight='bold', pad=25)
+    plt.suptitle(f"The Crowding Premium (CFTC Data as of {latest_date})", fontsize=11, color='gray', y=0.88)
 
     # Ann Basis Line Chart
     ax2 = ax1.twinx()
@@ -78,19 +74,24 @@ def build_cot_chart():
     ax2.set_ylabel('Annualised Basis (%)', color=color2, fontweight='bold', fontsize=11)
     ax2.tick_params(axis='y', labelcolor=color2)
 
+    # Clean up X-Axis formatting
     ax1.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+    plt.xticks(rotation=45) # Angle dates slightly so they don't overlap on long timeframes
     ax1.grid(True, linestyle='--', alpha=0.4)
 
+    # Merge Legends
     lines_1, labels_1 = ax1.get_legend_handles_labels()
     lines_2, labels_2 = ax2.get_legend_handles_labels()
     ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper left', frameon=True)
 
-    fig.tight_layout()
+    # Tell tight_layout to leave room at the top for the suptitle
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
 
-    # Renders inline in Colab instead of saving to a file
-# Save as static image
+    # Save as static image
     filename = 'cftc_btc_crowding.png'
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     print(f"Successfully generated '{filename}'")
+
 # Execute the function
-build_cot_chart()
+if __name__ == "__main__":
+    build_cot_chart()
