@@ -9,6 +9,12 @@ This repository uses a serverless Python script to pull public data from the CFT
 # How to Read the Chart #
 This dual-axis chart visualizes the relationship between the basis yield and institutional positioning over the past twelve months. The red bars correspond to the left axis, tracking the net short contract positioning of leveraged funds, where deeper negative values indicate heavier institutional short exposure. The dark blue line maps to the right axis, tracking the rolling annualized basis yield percentage to show the reward currently available for executing the cash-and-carry trade.
 
+# What Value This Creates
+Institutional clients constantly ask about the health of the basis yield and whether the trade is becoming "too crowded." This tracker provides the sales team with an instant, data-backed answer:
+* **Quantifies Institutional Sentiment:** By mapping the net short positioning of leveraged funds against the basis yield, it visually demonstrates how heavily institutions are leaning into the trade.
+* **Contextualizes Risk vs. Reward:** It tells the team whether the current market is highly crowded (deep negative positioning) or normalizing over a 12-month window.
+* **Drives the Conversation:** It serves as an authoritative, objective reference point for talking with institutional clients about yield health, moving the conversation from speculation to quantitative reality.
+
 # How to Run the Tracker (3 Options) #
 1. Fully Automated (GitHub Actions)
 The primary engine for this repository is a GitHub Action that runs completely hands-off.
