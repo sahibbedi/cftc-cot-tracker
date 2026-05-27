@@ -36,17 +36,24 @@ def build_cot_chart():
     cot_df['Net_Short'] = cot_df['Lev_Short'] - cot_df['Lev_Long']
     cot_df = cot_df[['Date', 'Net_Short']].sort_values('Date').set_index('Date')
 
-    # 2. Fetch Pricing Data for Basis
+   # 2. Fetch Pricing Data for Basis
     print("Fetching pricing data for basis overlay...")
     start_date = cot_df.index.min().strftime('%Y-%m-%d')
     
-    # Download tickers separately to prevent MultiIndex formatting issues
-    spot = yf.Ticker("BTC-USD").history(start=start_date)['Close']
-    fut = yf.Ticker("BTC=F").history(start=start_date)['Close']
+    # Switch back to yf.download() as it is more stable in GitHub Actions
+    price_data = yf.download(["BTC-USD", "BTC=F"], start=start_date, progress=False)
     
-    # THE FIX: Strip timezones from Yahoo Finance data so it aligns with CFTC data
-    spot.index = spot.index.tz_localize(None)
-    fut.index = fut.index.tz_localize(None)
+    # SAFETY CHECK: If Yahoo blocked the request, exit cleanly
+    if price_data.empty or 'Close' not in price_data:
+        print("Error: Yahoo Finance returned no data (likely rate-limited). Try again later.")
+        return
+        
+    spot = price_data['Close']['BTC-USD'].dropna()
+    fut = price_data['Close']['BTC=F'].dropna()
+    
+    # THE FIX: Explicitly force the index to be a Datetime object, then strip timezones
+    spot.index = pd.to_datetime(spot.index).tz_localize(None)
+    fut.index = pd.to_datetime(fut.index).tz_localize(None)
     
     # Calculate basis
     ann_basis = ((fut / spot) - 1) * (365 / 30) * 100
