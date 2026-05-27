@@ -3,7 +3,10 @@ An automated tracker that visualizes the "crowding premium" in the Bitcoin cash-
 
 This repository uses a serverless Python script to pull public data from the CFTC API and Yahoo Finance. It calculates the net short positioning of Leveraged Funds, overlays it with the annualized BTC futures basis, and generates a static chart (cftc_btc_crowding.png).
 
-How to Run the Tracker (3 Options)
+# How to Read the Chart #
+This dual-axis chart visualizes the relationship between the basis yield and institutional positioning over the past twelve months. The red bars correspond to the left axis, tracking the net short contract positioning of leveraged funds, where deeper negative values indicate heavier institutional short exposure. The dark blue line maps to the right axis, tracking the rolling annualized basis yield percentage to show the reward currently available for executing the cash-and-carry trade.
+
+# How to Run the Tracker (3 Options) #
 1. Fully Automated (GitHub Actions)
 The primary engine for this repository is a GitHub Action that runs completely hands-off.
 
