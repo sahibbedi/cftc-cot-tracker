@@ -45,11 +45,15 @@ def build_cot_chart():
         print("Error: Yahoo Finance returned no data (likely rate-limited). Try again later.")
         return
         
+    # THE SAFETY FIX: Scan both MultiIndex levels to adapt to any yfinance version
     if isinstance(price_data.columns, pd.MultiIndex):
-        if 'Close' in price_data.columns.levels[0]:
+        if 'Close' in price_data.columns.get_level_values(0):
             close_df = price_data['Close'].dropna()
+        elif 'Close' in price_data.columns.get_level_values(1):
+            # If yfinance flipped the levels, extract the 'Close' slice safely
+            close_df = price_data.xs('Close', level=1, axis=1).dropna()
         else:
-            print("Error: 'Close' level not found in MultiIndex columns.")
+            print("Error: 'Close' level not found anywhere in MultiIndex columns.")
             return
     else:
         close_df = price_data.dropna()
