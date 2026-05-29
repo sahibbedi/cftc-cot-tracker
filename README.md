@@ -54,6 +54,7 @@ Execute the script:
 
 Bash
 python tracker.py
+
 The updated cftc_btc_crowding.png file will be saved directly to your local folder.
 
 Feel free to email sahibsbedi26@gmail.com if you run into issues.
