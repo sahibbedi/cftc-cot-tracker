@@ -49,6 +49,7 @@ Install the lightweight dependencies:
 
 Bash
 pip install -r requirements.txt
+
 Execute the script:
 
 Bash
