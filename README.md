@@ -13,7 +13,7 @@ This dual-axis chart visualizes the relationship between the basis yield and ins
 Institutional clients could constantly ask about the health of the basis yield and whether the trade is becoming "too crowded." This tracker can simply provide an instant, data-backed answer:
 * **Quantifies Institutional Sentiment:** By mapping the net short positioning of leveraged funds against the basis yield, it visually demonstrates how heavily institutions are leaning into the trade.
 * **Contextualizes Risk vs. Reward:** It tells the team whether the current market is highly crowded (deep negative positioning) or normalizing over a 12-month window.
-* **Drives the Conversation:** It serves as an authoritative, objective reference point for talking with institutional clients about yield health, moving the conversation from speculation to quantitative reality.
+* **Drives the Conversation:** It serves as an authoritative, objective reference point for talking with institutional clients about yield health.
 
 # How to Run the Tracker (3 Options) #
 1. Fully Automated (GitHub Actions)
