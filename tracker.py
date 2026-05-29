@@ -7,7 +7,7 @@ import matplotlib.dates as mdates
 def build_cot_chart():
     # 1. Fetch CFTC Data 
     url = "https://publicreporting.cftc.gov/resource/gpe5-46if.json"
-params = {
+    params = {
         "contract_market_name": "BITCOIN - CHICAGO MERCANTILE EXCHANGE",
         "$order": "report_date_as_yyyy_mm_dd DESC",
         "$limit": 156
@@ -36,26 +36,42 @@ params = {
     cot_df['Net_Short'] = cot_df['Lev_Short'] - cot_df['Lev_Long']
     cot_df = cot_df[['Date', 'Net_Short']].sort_values('Date').set_index('Date')
 
-   # 2. Fetch Pricing Data for Basis
+    # 2. Fetch Pricing Data for Basis
     print("Fetching pricing data for basis overlay...")
     start_date = cot_df.index.min().strftime('%Y-%m-%d')
     
-    # Switch back to yf.download() as it is more stable in GitHub Actions
+    # Download raw frame without unsafe multi-slicing inline
     price_data = yf.download(["BTC-USD", "BTC=F"], start=start_date, progress=False)
     
-    # SAFETY CHECK: If Yahoo blocked the request, exit cleanly
-    if price_data.empty or 'Close' not in price_data:
+    # SAFETY CHECK: If Yahoo blocked the request or returned empty
+    if price_data.empty:
         print("Error: Yahoo Finance returned no data (likely rate-limited). Try again later.")
         return
         
-    spot = price_data['Close']['BTC-USD'].dropna()
-    fut = price_data['Close']['BTC=F'].dropna()
+    # THE SAFETY FIX: Safe MultiIndex checking for 'Close' columns
+    if isinstance(price_data.columns, pd.MultiIndex):
+        if 'Close' in price_data.columns.levels[0]:
+            close_df = price_data['Close'].dropna()
+        else:
+            print("Error: 'Close' level not found in MultiIndex columns.")
+            return
+    else:
+        # Fallback if dataframe is single-index flatten
+        close_df = price_data.dropna()
+
+    # Confirm both keys exist in the extracted dataframe
+    if 'BTC-USD' not in close_df.columns or 'BTC=F' not in close_df.columns:
+        print("Error: Target symbols missing from dataframe. Skipping frame mapping.")
+        return
+
+    spot = close_df['BTC-USD'].copy()
+    fut = close_df['BTC=F'].copy()
     
-    # THE FIX: Explicitly force the index to be a Datetime object, then strip timezones
+    # Explicitly force the index to be a Datetime object, then strip timezones
     spot.index = pd.to_datetime(spot.index).tz_localize(None)
     fut.index = pd.to_datetime(fut.index).tz_localize(None)
     
-    # Calculate basis
+    # Calculate basis (Assuming a standardized 30-day proxy window for back-history)
     ann_basis = ((fut / spot) - 1) * (365 / 30) * 100
     ann_basis.name = 'Ann_Basis_Pct'
 
@@ -74,7 +90,7 @@ params = {
     ax1.set_ylabel('Leveraged Funds Net Short (Contracts)', color=color1, fontweight='bold', fontsize=11)
     ax1.tick_params(axis='y', labelcolor=color1)
 
-    # THE TITLE FIX: Use suptitle for main, set_title for sub, and adjust margins
+    # Title management formatting
     latest_date = merged.index.max().strftime('%b %d, %Y')
     fig.suptitle('BTC CME Basis vs. Leveraged Fund Positioning', fontsize=16, fontweight='bold', y=0.98)
     ax1.set_title(f"The Crowding Premium (CFTC Data as of {latest_date})", fontsize=11, color='gray', pad=15)
