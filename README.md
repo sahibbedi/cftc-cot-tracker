@@ -34,7 +34,7 @@ Wait ~60 seconds for the bot to generate and save the new chart.
 2. The Backup Environment (Google Colab)
 If GitHub Actions is ever rate-limited by Yahoo Finance, or if you want to experiment with the code and see the chart render interactively, you can use the included Jupyter Notebook backup.
 
-Navigate to the WeeklyCFTCChartUpdate.ipynb file in this repository.
+Navigate to the WeeklyCFTCChartUpdate.ipynb file in this repository. Link: https://colab.research.google.com/github/sahibbedi/cftc-cot-tracker/blob/main/WeeklyCFTCChartUpdate.ipynb
 
 You can open this directly in Google Colab by navigating to colab.research.google.com, clicking File > Open Notebook, selecting the GitHub tab, and pasting your repository URL.
 
