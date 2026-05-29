@@ -2,12 +2,8 @@ name: Weekly CFTC Chart Update
 
 on:
   schedule:
-    # Runs at 4:30 PM ET every Friday (20:30 UTC)
     - cron: '30 20 * * 5'
-  workflow_dispatch: # Allows manual trigger via GitHub interface
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -15,6 +11,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -22,19 +19,33 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          cache: 'pip'
+          python-version: "3.11"
 
       - name: Install Dependencies
-        run: pip install requests pandas yfinance matplotlib
+        run: |
+          python -m pip install --upgrade pip
+          pip install \
+            requests==2.32.3 \
+            pandas==2.2.3 \
+            yfinance==0.2.61 \
+            matplotlib==3.10.0
 
       - name: Run Tracker Script
         run: python tracker.py
 
       - name: Commit and Push Image
         run: |
+          if [ ! -f cftc_btc_crowding.png ]; then
+            echo "Chart not generated. Exiting."
+            exit 0
+          fi
+
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
           git add cftc_btc_crowding.png
-          git commit -m "chore: Update weekly CFTC CoT chart" || echo "No changes to commit"
+
+          git diff --staged --quiet || \
+          git commit -m "chore: update weekly CFTC chart"
+
           git push
